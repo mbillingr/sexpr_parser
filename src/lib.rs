@@ -28,6 +28,11 @@ pub trait SexprFactory {
 
     /// construct a pair
     fn pair(a: Self::Sexpr, b: Self::Sexpr) -> Self::Sexpr;
+
+    /// construct a quotation
+    fn quote(x: Self::Sexpr) -> Self::Sexpr {
+        Self::list(vec![Self::symbol("quote"), x])
+    }
 }
 
 pub type Result<'i, T> = std::result::Result<T, Error<'i>>;
@@ -56,6 +61,8 @@ fn parse_expr<'i, S: SexprFactory>(token_stream: &mut Tokenizer<'i>) -> Result<'
 
     if token == ")" || token == "." {
         Err(Error::UnexpectedToken(token, ""))
+    } else if token == "'" {
+        parse_expr::<S>(token_stream).map(|x| S::quote(x))
     } else if token == "(" {
         parse_list::<S>(token_stream)
     } else if token.starts_with('"') && token.ends_with('"') {
@@ -182,7 +189,7 @@ impl<'i> Tokenizer<'i> {
 
 fn is_delimiter(ch: &u8) -> bool {
     match ch {
-        b'(' | b')' => true,
+        b'(' | b')' | b'\'' => true,
         _ => ch.is_ascii_whitespace(),
     }
 }
@@ -233,6 +240,14 @@ mod tests {
         fn pair(a: Self::Sexpr, b: Self::Sexpr) -> Self::Sexpr {
             S::Pair(Box::new((a, b)))
         }
+    }
+
+    #[test]
+    fn example() {
+        assert_eq!(
+            parse::<S>("(hello . \"world\")"),
+            Ok(S::pair(S::symbol("hello"), S::string("world")))
+        );
     }
 
     #[test]
@@ -346,10 +361,18 @@ mod tests {
     }
 
     #[test]
-    fn example() {
+    fn quoted_symbol() {
         assert_eq!(
-            parse::<S>("(hello . \"world\")"),
-            Ok(S::pair(S::symbol("hello"), S::string("world")))
-        );
+            parse::<S>("'foo"),
+            Ok(S::list(vec![S::symbol("quote"), S::symbol("foo")]))
+        )
+    }
+
+    #[test]
+    fn quoted_list() {
+        assert_eq!(
+            parse::<S>("'()"),
+            Ok(S::list(vec![S::symbol("quote"), S::list(vec![])]))
+        )
     }
 }
