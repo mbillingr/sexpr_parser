@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 /// Interface for constructing S-expressions
@@ -42,6 +43,18 @@ pub enum Error<'i> {
     UnexpectedEOF,
     ExtraToken(&'i str),
     UnexpectedToken(&'i str, &'i str),
+}
+
+impl Display for Error<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::UnexpectedEOF => write!(f, "Unexpected End of File"),
+            Error::ExtraToken(token) => write!(f, "Extra token: {}", token),
+            Error::UnexpectedToken(actual, expected) => {
+                write!(f, "Expected token '{}' but got '{}'", expected, actual)
+            }
+        }
+    }
 }
 
 pub fn parse<S: SexprFactory>(input: &str) -> Result<S::Sexpr> {
