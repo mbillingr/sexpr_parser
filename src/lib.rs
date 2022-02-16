@@ -70,12 +70,28 @@ pub trait Parser: SexprFactory {
 
         Ok(sexpr)
     }
+
+    fn parse_seq<'i>(&mut self, input: &'i str) -> Result<'i, Self::Sexpr> {
+        let mut token_stream = Tokenizer::new(input);
+
+        let mut exprs = vec![];
+
+        while token_stream.peek_token().is_some() {
+            exprs.push(parse_expr(self, &mut token_stream)?);
+        }
+
+        Ok(self.list(exprs))
+    }
 }
 
 impl<T: SexprFactory> Parser for T {}
 
 pub fn parse<S: Default + Parser>(input: &str) -> Result<S::Sexpr> {
     S::default().parse(input)
+}
+
+pub fn parse_seq<S: Default + Parser>(input: &str) -> Result<S::Sexpr> {
+    S::default().parse_seq(input)
 }
 
 fn parse_expr<'i, S: SexprFactory + ?Sized>(
@@ -405,6 +421,15 @@ mod tests {
             parse::<SF>("'()"),
             Ok(SF.list(vec![SF.symbol("quote"), SF.list(vec![])]))
         )
+    }
+
+    #[test]
+    fn multiple_exprs() {
+        assert_eq!(SF.parse_seq(" "), Ok(SF.list(vec![])));
+        assert_eq!(
+            SF.parse_seq("1 2 3"),
+            Ok(SF.list(vec![S::Int(1), S::Int(2), S::Int(3)]))
+        );
     }
 
     #[test]
