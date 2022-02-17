@@ -6,7 +6,7 @@ Just implement the `SexprFactory` trait and call the `parse` function.
 
 ## Example
 
-Let's assume `S` is *your* data structure and `SF` is a type that known how to construct values of `S`.
+Let's assume `S` is *your* data structure and `SF` is a type that knows how to construct values of `S`.
 Here is how you parse it:
 
 ```rust
