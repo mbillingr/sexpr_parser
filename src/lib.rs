@@ -203,8 +203,21 @@ impl<'i> Tokenizer<'i> {
             let begin = self.cursor;
 
             if self.peek_char() == Some(b'"') {
-                self.next_char();
-                while self.next_char()? != b'"' {}
+                let first_char = self.next_char();
+                let mut backslash = first_char == Some(b'\\');
+                loop {
+                    let nc = self.next_char()?;
+                    if nc == b'\\' {
+                        backslash = !backslash;
+                        continue;
+                    } else if backslash {
+                        backslash = false;
+                        continue;
+                    }
+                    if nc == b'"' {
+                        break;
+                    }
+                }
             } else {
                 while self.peek_char().filter(not(is_delimiter)).is_some() {
                     self.next_char();
@@ -385,6 +398,17 @@ mod tests {
     #[test]
     fn invalid_string() {
         assert_eq!(parse::<SF>("\"hello "), Err(Error::UnexpectedEOF))
+    }
+
+    #[test]
+    fn string_with_escaped_quote() {
+        assert_eq!(
+            parse::<SF>(r#"(code . "println!(\"Hello World!\");")"#),
+            Ok(SF.pair(
+                S::Symbol("code".to_owned()),
+                S::String("println!(\\\"Hello World!\\\");".to_owned())
+            ))
+        )
     }
 
     #[test]
