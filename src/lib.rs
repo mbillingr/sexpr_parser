@@ -107,7 +107,10 @@ fn parse_expr<'i, S: SexprFactory + ?Sized>(
     } else if token == "(" {
         parse_list(factory, token_stream)
     } else if token.starts_with('"') && token.ends_with('"') {
-        Ok(factory.string(token.trim_matches('"')))
+        // Strip qoute signs exactly once
+        let s = token.strip_prefix('"').unwrap_or(token);
+        let s = s.strip_suffix('"').unwrap_or(s);
+        Ok(factory.string(s))
     } else if let Ok(x) = token.parse::<S::Integer>() {
         Ok(factory.int(x))
     } else if let Ok(x) = token.parse::<S::Float>() {
@@ -404,7 +407,15 @@ mod tests {
                 S::Symbol("code".to_owned()),
                 S::String("println!(\\\"Hello World!\\\");".to_owned())
             ))
-        )
+        );
+        // Check that ending quotes are not stripped if they are escaped.
+        assert_eq!(
+            parse::<SF>(r#"(backslash . "\"")"#),
+            Ok(SF.pair(
+                S::Symbol("backslash".to_owned()),
+                S::String("\\\"".to_owned())
+            ))
+        );
     }
 
     #[test]
