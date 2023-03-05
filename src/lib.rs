@@ -107,7 +107,10 @@ fn parse_expr<'i, S: SexprFactory + ?Sized>(
     } else if token == "(" {
         parse_list(factory, token_stream)
     } else if token.starts_with('"') && token.ends_with('"') {
-        Ok(factory.string(token.trim_matches('"')))
+        // Strip qoute signs exactly once
+        let s = token.strip_prefix('"').unwrap_or(token);
+        let s = s.strip_suffix('"').unwrap_or(s);
+        Ok(factory.string(s))
     } else if let Ok(x) = token.parse::<S::Integer>() {
         Ok(factory.int(x))
     } else if let Ok(x) = token.parse::<S::Float>() {
@@ -203,8 +206,17 @@ impl<'i> Tokenizer<'i> {
             let begin = self.cursor;
 
             if self.peek_char() == Some(b'"') {
-                self.next_char();
-                while self.next_char()? != b'"' {}
+                self.next_char()?;
+                loop {
+                    match self.next_char()? {
+                        b'\\' => {
+                            // ignore escpaed character
+                            self.next_char()?;
+                        }
+                        b'"' => break,
+                        _ => {}
+                    }
+                }
             } else {
                 while self.peek_char().filter(not(is_delimiter)).is_some() {
                     self.next_char();
@@ -385,6 +397,25 @@ mod tests {
     #[test]
     fn invalid_string() {
         assert_eq!(parse::<SF>("\"hello "), Err(Error::UnexpectedEOF))
+    }
+
+    #[test]
+    fn string_with_escaped_quote() {
+        assert_eq!(
+            parse::<SF>(r#"(code . "println!(\"Hello World!\");")"#),
+            Ok(SF.pair(
+                S::Symbol("code".to_owned()),
+                S::String("println!(\\\"Hello World!\\\");".to_owned())
+            ))
+        );
+        // Check that ending quotes are not stripped if they are escaped.
+        assert_eq!(
+            parse::<SF>(r#"(backslash . "\"")"#),
+            Ok(SF.pair(
+                S::Symbol("backslash".to_owned()),
+                S::String("\\\"".to_owned())
+            ))
+        );
     }
 
     #[test]
