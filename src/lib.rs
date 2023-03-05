@@ -203,19 +203,15 @@ impl<'i> Tokenizer<'i> {
             let begin = self.cursor;
 
             if self.peek_char() == Some(b'"') {
-                let first_char = self.next_char();
-                let mut backslash = first_char == Some(b'\\');
+                self.next_char()?;
                 loop {
-                    let nc = self.next_char()?;
-                    if nc == b'\\' {
-                        backslash = !backslash;
-                        continue;
-                    } else if backslash {
-                        backslash = false;
-                        continue;
-                    }
-                    if nc == b'"' {
-                        break;
+                    match self.next_char()? {
+                        b'\\' => {
+                            // ignore escpaed character
+                            self.next_char()?;
+                        }
+                        b'"' => break,
+                        _ => {}
                     }
                 }
             } else {
