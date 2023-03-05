@@ -72,5 +72,5 @@ impl SexprFactory for SF {
 }
 ```
 
-Not that you can even use a third-party data structure instead of your own `S`.
+Note that you can even use a third-party data structure instead of your own `S`.
 All you need to do is define and implement a factory structure.
